@@ -31,7 +31,7 @@ const NumOrDiv = Union{Num, Symb.SymbolicUtils.Div, Symb.SymbolicUtils.BasicSymb
 function __init__()
     # global const s = Sym("s")
     # global const z = Sym("z")
-    copy!(sp, SymPyPythonCall.sympy)
+    SymPyPythonCall.PythonCall.pycopy!(sp, SymPyPythonCall.sympy)
 end
 
 
