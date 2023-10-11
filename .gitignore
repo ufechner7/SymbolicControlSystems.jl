@@ -2,4 +2,4 @@
 *.jl.cov
 *.jl.mem
 .CondaPkg
-.Manifest.toml
+Manifest.toml
