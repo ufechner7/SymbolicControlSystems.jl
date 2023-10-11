@@ -1,7 +1,7 @@
 __precompile__(false)
 module SymbolicControlSystems
 using LinearAlgebra
-using ControlSystemsBase, SymPy, Latexify
+using ControlSystemsBase, SymPyPythonCall, Latexify
 import Symbolics as Symb
 import Symbolics: Num
 using InteractiveUtils
@@ -21,9 +21,9 @@ export sp,
 
 # export symbolics2sym
 
-const sp = SymPy.PyCall.PyNULL()
-const s = SymPy.Sym("s")
-const z = SymPy.Sym("z")
+const sp = SymPyPythonCall.PythonCall.pynew()
+const s = SymPyPythonCall.Sym("s")
+const z = SymPyPythonCall.Sym("z")
 
 const NumOrDiv = Union{Num, Symb.SymbolicUtils.Div, Symb.SymbolicUtils.BasicSymbolic}
 
@@ -31,11 +31,11 @@ const NumOrDiv = Union{Num, Symb.SymbolicUtils.Div, Symb.SymbolicUtils.BasicSymb
 function __init__()
     # global const s = Sym("s")
     # global const z = Sym("z")
-    copy!(sp, SymPy.sympy)
+    copy!(sp, SymPyPythonCall.sympy)
 end
 
 
-function SymPy.Sym(sys::StateSpace{<:Any,Sym})
+function SymPyPythonCall.Sym(sys::StateSpace{<:Any,Sym})
     A, B, C, D = ControlSystemsBase.ssdata(sys)
     expr = if isdiscrete(sys)
         (C*inv(z * I(size(A, 1)) - A)*B+D)
@@ -49,7 +49,7 @@ function SymPy.Sym(sys::StateSpace{<:Any,Sym})
     end
 end
 
-function SymPy.Sym(sys::TransferFunction)
+function SymPyPythonCall.Sym(sys::TransferFunction)
     if isdiscrete(sys)
         ssys = sp.Poly(numvec(sys)[], z) / sp.Poly(denvec(sys)[], z)
     else
@@ -103,7 +103,7 @@ end
 expand_coeffs(n::Real, args...; numeric = false) = n
 
 function ControlSystemsBase.tf(sys::NumOrDiv, h = nothing)
-    sp = Symb.symbolics_to_sympy(sys)
+    sp = Symb.symbolics_to_SymPyPythonCall(sys)
     G = tf(sp, h)
     tf(Num.(numvec(G)[]), Num.(denvec(G)[]), G.timeevol)
 end
@@ -123,14 +123,14 @@ end
 
 
 function ControlSystemsBase.minreal(sys::StateSpace{<:Any,NumOrDiv})
-    # sys |> Symb.Num .|> Symb.symbolics_to_sympy .|> sp.simplify
+    # sys |> Symb.Num .|> Symb.symbolics_to_SymPyPythonCall .|> sp.simplify
     nsys = Num(sys)
     nsys = Symb.simplify.(nsys)
     nsys = Symb.simplify_fractions.(nsys)
 end
 
 function ControlSystemsBase.minreal(sys::StateSpace{<:Any,Sym})
-    # sys |> Symb.Num .|> Symb.symbolics_to_sympy .|> sp.simplify
+    # sys |> Symb.Num .|> Symb.symbolics_to_SymPyPythonCall .|> sp.simplify
     nsys = Sym(sys)
     nsys = sp.simplify.(nsys)
 end
@@ -317,7 +317,7 @@ The state is internally handled by C `static` variables, so the generated code i
 
 # Arguments:
 - `G`: A linear system
-- `simplify`: A function for symbolic simplification. You may try `Sympy.simplify`, but for large systems, this will take a long time to compute.
+- `simplify`: A function for symbolic simplification. You may try `SymPyPythonCall.simplify`, but for large systems, this will take a long time to compute.
 - `cse`: Perform common subexpression elimination. This generally improves the performance of the generated code.
 """
 function ccode(G::TransferFunction; simplify = identity, cse = true, static=true, double=true)
@@ -406,7 +406,7 @@ function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfe
     u = nu == 1 ? Sym("u") : [Sym("u[$(i-1)]") for i = 1:nu]
     x = [Sym("x[$(i-1)]") for i = 1:nx]
     # @show P
-    if ControlSystemsBase.numeric_type(sys) <: SymPy.Sym
+    if ControlSystemsBase.numeric_type(sys) <: SymPyPythonCall.Sym
         vars = reduce(vcat, [collect(M.free_symbols) for M in (sys.A, sys.B, sys.C, sys.D)]) |> unique
         vars = sort(vars, by = string)
         var_str = ""
@@ -767,7 +767,7 @@ function print_c_array(
 end
 
 function write_array_cse(io, a, name = "x", s = "")
-    subex, final = sp.cse(a, symbols = [SymPy.Sym(name * string(i)) for i = 1:200])
+    subex, final = sp.cse(a, symbols = [SymPyPythonCall.Sym(name * string(i)) for i = 1:200])
     new_a = final[]
     for se in subex
         println(io, "double $(se[1]) = $(sp.ccode(se[2]));")
