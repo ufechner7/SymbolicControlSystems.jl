@@ -7,6 +7,7 @@ import Symbolics: Num
 using InteractiveUtils
 
 export sp,
+    pc,
     sym2num,
     latextf,
     Sym,
@@ -24,6 +25,7 @@ export sp,
 const sp = SymPyPythonCall.PythonCall.pynew()
 const s = SymPyPythonCall.Sym("s")
 const z = SymPyPythonCall.Sym("z")
+const pc = SymPyPythonCall.PythonCall
 
 const NumOrDiv = Union{Num, Symb.SymbolicUtils.Div, Symb.SymbolicUtils.BasicSymbolic}
 
@@ -95,9 +97,11 @@ end
 
 function expand_coeffs(n, var; numeric = false)
     n = sp.Poly(n, var)
-    deg = n.degree() |> Float64 |> Int
+    # deg = n.degree() |> Float64 |> Int
+    deg = pc.pyconvert(Float64, n.degree()) |> Int
     c = n.all_coeffs() # This fails if the coeffs are symbolic
-    numeric && (c = Float64.(c))
+    # numeric && (c = Float64.(c))
+    (numeric || typeof(c) == pc.Py) && (c = pc.pyconvert(Vector{Float64}, c))
     [c; zeros(eltype(c), deg - length(c) + 1)]
 end
 expand_coeffs(n::Real, args...; numeric = false) = n
